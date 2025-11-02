@@ -1,0 +1,130 @@
+/* ==========================================================
+   🎨 ESTILOS PERSONALIZADOS - SISTEMA DE FACTURACIÓN ELECTRÓNICA
+   ----------------------------------------------------------
+   Diseñado para una interfaz moderna, clara y agradable.
+   Compatible con Bootstrap 5 y DataTables.
+   Autor: Alex Mejía
+   ========================================================== */
+
+/* 🔹 Fuente y fondo general */
+body {
+  background-color: #f8f9fa;
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #333;
+}
+
+/* 🔹 Navbar */
+.navbar {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+.navbar-brand {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.navbar .nav-link.active {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+}
+
+/* 🔹 Botones */
+.btn {
+  border-radius: 8px !important;
+  transition: 0.2s all ease-in-out;
+}
+.btn:hover {
+  transform: scale(1.03);
+}
+.btn-success {
+  background: linear-gradient(135deg, #198754, #1ebd6a);
+  border: none;
+}
+.btn-warning {
+  background: linear-gradient(135deg, #f6c23e, #f8d775);
+  border: none;
+}
+.btn-danger {
+  background: linear-gradient(135deg, #e74a3b, #f87171);
+  border: none;
+}
+
+/* 🔹 Tablas */
+.table {
+  border-radius: 10px;
+  overflow: hidden;
+}
+.table thead {
+  background: linear-gradient(90deg, #0d6efd, #1e80ff);
+  color: white;
+  font-weight: 500;
+}
+.table-hover tbody tr:hover {
+  background-color: #f1f3f5;
+}
+.dataTables_wrapper .dataTables_filter input {
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+/* 🔹 Imágenes de productos */
+img.rounded {
+  border-radius: 10px;
+  object-fit: cover;
+  border: 2px solid #dee2e6;
+  transition: 0.3s ease;
+}
+img.rounded:hover {
+  transform: scale(1.05);
+  border-color: #0d6efd;
+}
+
+/* 🔹 Modales */
+.modal-content {
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+}
+.modal-header {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+.modal-title {
+  font-weight: 600;
+}
+.modal-body label {
+  font-weight: 500;
+  color: #555;
+}
+
+/* 🔹 Formularios */
+.form-control {
+  border-radius: 8px;
+  box-shadow: none !important;
+}
+.form-control:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.25);
+}
+
+/* 🔹 Alertas */
+.alert {
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-top: 10px;
+}
+
+/* 🔹 Títulos */
+h4, h5 {
+  font-weight: 600;
+  color: #0d6efd;
+}
+
+/* 🔹 Scrollbar personalizada */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #0d6efd;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0b5ed7;
+}
