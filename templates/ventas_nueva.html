@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nueva Venta</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<!-- 🔹 ENCABEZADO -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container">
+    <a class="navbar-brand" href="{{ url_for('ventas') }}">
+      <i class="bi bi-cart-plus"></i> Nueva Venta
+    </a>
+  </div>
+</nav>
+
+<div class="container my-4">
+  <form method="POST" action="{{ url_for('ventas_nueva') }}">
+    <!-- DATOS DEL CLIENTE -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h5 class="mb-3 text-primary"><i class="bi bi-person-vcard"></i> Datos del Cliente</h5>
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Cliente</label>
+            <select id="cliente" name="cliente" class="form-select" required>
+              <option value="">Seleccionar cliente</option>
+              {% for c in clientes %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Fecha</label>
+            <input type="date" id="fecha" class="form-control" value="{{ date.today() }}" readonly>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Vendedor</label>
+            <input type="text" class="form-control" value="{{ user.username }}" readonly>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN DE PRODUCTOS -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h5 class="mb-3 text-success"><i class="bi bi-bag-plus"></i> Agregar Productos</h5>
+        <div class="row align-items-end">
+          <div class="col-md-5 mb-3">
+            <label class="form-label">Producto</label>
+            <select id="productoSelect" class="form-select">
+              <option value="">Seleccionar producto</option>
+              {% for p in productos %}
+                <option 
+                  value="{{ p.id }}" 
+                  data-precio="{{ p.price }}" 
+                  data-stock="{{ p.stock_items[0].qty if p.stock_items else 0 }}">
+                  {{ p.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Cantidad</label>
+            <input type="number" id="cantidad" class="form-control" min="1" placeholder="Ej: 2">
+          </div>
+          <div class="col-md-2 mb-3">
+            <label class="form-label">Precio</label>
+            <input type="text" id="precio" class="form-control" readonly>
+          </div>
+          <div class="col-md-2 mb-3">
+            <button type="button" class="btn btn-success w-100" id="btnAgregar">
+              <i class="bi bi-plus-circle"></i> Agregar
+            </button>
+          </div>
+        </div>
+
+        <!-- TABLA DE VENTA -->
+        <div class="table-responsive">
+          <table class="table table-bordered text-center align-middle" id="tablaVenta">
+            <thead class="table-primary">
+              <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio Unitario ($)</th>
+                <th>Subtotal ($)</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <!-- TOTALES -->
+        <div class="row justify-content-end mt-3">
+          <div class="col-md-4">
+            <table class="table table-borderless">
+              <tr>
+                <th>Subtotal:</th>
+                <td id="subtotal">0.00</td>
+              </tr>
+              <tr>
+                <th>IVA (13%):</th>
+                <td id="iva">0.00</td>
+              </tr>
+              <tr class="table-info">
+                <th>Total a Pagar:</th>
+                <td id="total">0.00</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="text-end">
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-save"></i> Guardar Venta
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- ================================ -->
+<!-- 🧮 SCRIPT DE CÁLCULO Y ENVÍO -->
+<!-- ================================ -->
+<script>
+const IVA = 0.13;
+const productoSelect = document.getElementById('productoSelect');
+const cantidadInput = document.getElementById('cantidad');
+const precioInput = document.getElementById('precio');
+const tabla = document.querySelector('#tablaVenta tbody');
+const form = document.querySelector('form');
+
+productoSelect.addEventListener('change', () => {
+  const selected = productoSelect.selectedOptions[0];
+  precioInput.value = parseFloat(selected.dataset.precio || 0).toFixed(2);
+});
+
+document.getElementById('btnAgregar').addEventListener('click', () => {
+  const productoId = productoSelect.value;
+  const nombre = productoSelect.selectedOptions[0]?.text;
+  const precio = parseFloat(precioInput.value) || 0;
+  const cantidad = parseInt(cantidadInput.value) || 0;
+  const stock = parseInt(productoSelect.selectedOptions[0]?.dataset.stock) || 0;
+
+  if (!productoId || cantidad <= 0) return alert('Selecciona producto y cantidad válida');
+  if (cantidad > stock) return alert('Cantidad excede el stock disponible');
+
+  const subtotal = cantidad * precio;
+
+  // Inserta fila visual
+  const fila = `
+    <tr>
+      <td>${nombre}</td>
+      <td>${cantidad}</td>
+      <td>${precio.toFixed(2)}</td>
+      <td class="subtotal">${subtotal.toFixed(2)}</td>
+      <td><button class="btn btn-danger btn-sm eliminar"><i class="bi bi-trash"></i></button></td>
+    </tr>`;
+  tabla.insertAdjacentHTML('beforeend', fila);
+
+  // Inserta inputs ocultos para Flask
+  const hiddenFields = `
+    <input type="hidden" name="producto_${productoId}" value="${productoId}">
+    <input type="hidden" name="cantidad_${productoId}" value="${cantidad}">
+  `;
+  form.insertAdjacentHTML('beforeend', hiddenFields);
+
+  recalcularTotales();
+});
+
+tabla.addEventListener('click', e => {
+  if (e.target.closest('.eliminar')) {
+    e.target.closest('tr').remove();
+    recalcularTotales();
+  }
+});
+
+function recalcularTotales() {
+  let subtotal = 0;
+  document.querySelectorAll('.subtotal').forEach(cell => {
+    subtotal += parseFloat(cell.textContent);
+  });
+  const iva = subtotal * IVA;
+  const total = subtotal + iva;
+  document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+  document.getElementById('iva').textContent = iva.toFixed(2);
+  document.getElementById('total').textContent = total.toFixed(2);
+}
+</script>
+
+</body>
+</html>
+
+

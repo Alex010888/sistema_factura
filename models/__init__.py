@@ -21,6 +21,7 @@ class User(db.Model, UserMixin):
 
     # Relaciones
     sales = db.relationship('Sale', backref='user', lazy=True)
+    invoices = db.relationship('Invoice', backref='user', lazy=True)
 
     # Métodos de seguridad
     def set_password(self, password):
@@ -49,6 +50,7 @@ class Customer(db.Model):
 
     # Relaciones
     sales = db.relationship('Sale', backref='customer', lazy=True)
+    invoices = db.relationship('Invoice', backref='customer', lazy=True)
 
 
 # ======================================================
@@ -56,19 +58,19 @@ class Customer(db.Model):
 # ======================================================
 class Product(db.Model):
     __tablename__ = 'products'
+
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(50), unique=True, nullable=False)
-    name = db.Column(db.String(150), nullable=False)
-    price = db.Column(db.Numeric(10,2), nullable=False)
-    cost = db.Column(db.Numeric(10,2), default=0)
-    tax = db.Column(db.Numeric(5,2), default=0)
-    image_path = db.Column(db.String(255), default=None)   # 🖼️ nueva columna
-    status = db.Column(db.SmallInteger, default=1)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    stock_items = db.relationship('Stock', backref='product', lazy=True)
+    code = db.Column(db.String(50), unique=True, nullable=True)
+    name = db.Column(db.String(200), nullable=False)
+    price = db.Column(db.Float, nullable=False, default=0.0)
+    cost = db.Column(db.Float, nullable=False, default=0.0)
+    tax = db.Column(db.Float, nullable=False, default=13.0)
+    image_path = db.Column(db.String(255))
 
-
+    # Relaciones
+    stock_items = db.relationship('Stock', backref='product', cascade="all, delete-orphan", lazy=True)
+    invoice_items = db.relationship('InvoiceItem', backref='product', cascade="all, delete-orphan", lazy=True)
+    sale_items = db.relationship('SaleItem', backref='product', cascade="all, delete-orphan", lazy=True)
 
 
 # ======================================================
@@ -76,16 +78,16 @@ class Product(db.Model):
 # ======================================================
 class Stock(db.Model):
     __tablename__ = 'stock'
+
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    qty = db.Column(db.Numeric(12,3), default=0)
+    qty = db.Column(db.Numeric(12, 3), default=0)
     location_id = db.Column(db.Integer, default=1)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-
 # ======================================================
-# 🧾 Modelo de Ventas (Factura electrónica)
+# 🧾 Modelo de Ventas (Factura POS)
 # ======================================================
 class Sale(db.Model):
     __tablename__ = 'sales'
@@ -100,7 +102,7 @@ class Sale(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relaciones
-    items = db.relationship('SaleItem', backref='sale', lazy=True)
+    items = db.relationship('SaleItem', backref='sale', cascade="all, delete-orphan", lazy=True)
 
 
 # ======================================================
@@ -116,3 +118,44 @@ class SaleItem(db.Model):
     price = db.Column(db.Numeric(10, 2), default=0)
     tax = db.Column(db.Numeric(5, 2), default=0)
     subtotal = db.Column(db.Numeric(12, 2), default=0)
+
+
+# ======================================================
+# 🧾 Modelo de Factura Electrónica
+# ======================================================
+class Invoice(db.Model):
+    __tablename__ = 'invoices'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+    subtotal = db.Column(db.Float, nullable=False, default=0.0)
+    tax_total = db.Column(db.Float, nullable=False, default=0.0)
+    total = db.Column(db.Float, nullable=False, default=0.0)
+
+    # ✅ Relación con los items (detalle)
+    items = db.relationship('InvoiceItem', backref='invoice', cascade="all, delete-orphan", lazy=True)
+
+    def __repr__(self):
+        return f"<Factura {self.code} - Cliente {self.customer.name if self.customer else 'Sin cliente'}>"
+
+
+# ======================================================
+# 🧾 Detalle de Factura Electrónica
+# ======================================================
+class InvoiceItem(db.Model):
+    __tablename__ = 'invoice_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey('invoices.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    subtotal = db.Column(db.Float, nullable=False)
+
+    def __repr__(self):
+        return f"<Item {self.product.name if self.product else 'Producto'} x {self.quantity}>"
+
+        return f"<Item {self.product.name} x {self.quantity}>"
