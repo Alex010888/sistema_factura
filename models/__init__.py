@@ -96,13 +96,25 @@ class Sale(db.Model):
     sale_number = db.Column(db.String(50), unique=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'))
+
+    # 💰 Totales y método de pago
+    subtotal = db.Column(db.Numeric(12, 2), default=0)
+    tax = db.Column(db.Numeric(12, 2), default=0)
     total = db.Column(db.Numeric(12, 2), default=0)
     paid_with = db.Column(db.String(50), default='EFECTIVO')
+    cash_received = db.Column(db.Numeric(12, 2), default=0)
+    change_amount = db.Column(db.Numeric(12, 2), default=0)
+
+    # 💨 Bandera para identificar venta rápida
+    is_fast_sale = db.Column(db.Boolean, default=False)
+
+    # 🕒 Tiempos
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relaciones
     items = db.relationship('SaleItem', backref='sale', cascade="all, delete-orphan", lazy=True)
+
 
 
 # ======================================================
