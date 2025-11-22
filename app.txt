@@ -6,12 +6,11 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 from config import Config
-from models import db, User, Customer, Product, Stock, Invoice, InvoiceItem, Category
+from models import db, User, Customer, Product, Stock, Invoice, InvoiceItem
 from sqlalchemy.orm import joinedload
 from datetime import date  # para fecha en ventas_nueva
 from decimal import Decimal  # para manejar cantidades en inventario
 import os
-
 # ====================================================
 # 🧾 GENERAR PDF DE FACTURA
 # ====================================================
@@ -19,7 +18,7 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet
 from flask import make_response
 
@@ -93,16 +92,14 @@ def logout():
     flash('Has cerrado sesión correctamente 👋', 'info')
     return redirect(url_for('login'))
 
-
-# ====================================================
-# 💨 VENTA RÁPIDA (solo muestra productos)
-# ====================================================
+#===================================================
+#VENTA RAPIDA
+#====================================================
 @app.route('/venta_final')
 @login_required
 def ventas_listar():
     productos = Product.query.options(joinedload(Product.stock_items)).all()
     return render_template('venta_final.html', productos=productos, user=current_user)
-
 
 # ====================================================
 # 💰 MÓDULO DE VENTAS / FACTURAS
@@ -202,10 +199,12 @@ def ventas_nueva():
             # Descontar stock del producto vendido
             stock = Stock.query.filter_by(product_id=item['product'].id).first()
             if stock:
+                # stock.qty puede ser Decimal. Lo convertimos y restamos en Decimal
                 stock_actual = Decimal(str(stock.qty))
                 nuevo_stock = stock_actual - item['quantity']
                 if nuevo_stock < 0:
                     nuevo_stock = Decimal('0.00')
+                # guardamos como float para no chocar con tipos
                 stock.qty = float(nuevo_stock)
 
         # 6. Guardar todo
@@ -244,14 +243,21 @@ def ventas_detalle(id):
         user=current_user
     )
 
-
 @app.route('/ventas/eliminar/<int:id>', methods=['POST'])
 @login_required
 def ventas_eliminar(id):
     """Elimina una factura existente, junto con sus items"""
     factura = Invoice.query.get_or_404(id)
 
+    # Protección: no permitir eliminar si ya está registrada oficialmente
+    # (puedes quitar esta parte si no manejas estados de facturación)
+    # if factura.estado == 'emitida':
+    #     flash('❌ No se puede eliminar una factura ya emitida.', 'danger')
+    #     return redirect(url_for('ventas'))
+
     try:
+        # Al tener cascade="all, delete-orphan" en Invoice.items,
+        # los InvoiceItem se eliminarán automáticamente.
         db.session.delete(factura)
         db.session.commit()
         flash(f'Factura {factura.code} eliminada correctamente 🗑️', 'success')
@@ -261,6 +267,7 @@ def ventas_eliminar(id):
         print(e)
 
     return redirect(url_for('ventas'))
+
 
 
 # ====================================================
@@ -322,23 +329,15 @@ def clientes_eliminar(id):
     return redirect(url_for('clientes_listar'))
 
 
+
 # ====================================================
-# 📦 MÓDULO DE PRODUCTOS (con categorías)
+# 📦 MÓDULO DE PRODUCTOS
 # ====================================================
 @app.route('/productos')
 @login_required
 def productos_listar():
-    productos = Product.query.options(
-        joinedload(Product.stock_items),
-        joinedload(Product.category)
-    ).all()
-    categorias = Category.query.order_by(Category.name).all()
-    return render_template(
-        'productos.html',
-        productos=productos,
-        categorias=categorias,
-        user=current_user
-    )
+    productos = Product.query.options(joinedload(Product.stock_items)).all()
+    return render_template('productos.html', productos=productos, user=current_user)
 
 
 @app.route('/productos/agregar', methods=['POST'])
@@ -349,7 +348,6 @@ def productos_agregar():
     costo = float(request.form.get('costo', 0) or 0)
     iva = float(request.form.get('iva', 0) or 0)
     cantidad = float(request.form.get('cantidad', 0) or 0)
-    categoria_id = request.form.get('category_id')  # select de categorías
     imagen = request.files.get('imagen')
 
     filename = None
@@ -357,13 +355,13 @@ def productos_agregar():
         filename = secure_filename(imagen.filename)
         imagen.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
+    # Creamos el producto sin code aún
     nuevo = Product(
         name=nombre,
         price=precio,
         cost=costo,
         tax=iva,
-        image_path=filename,
-        category_id=int(categoria_id) if categoria_id else None
+        image_path=filename
     )
     db.session.add(nuevo)
     db.session.flush()  # obtiene nuevo.id
@@ -389,8 +387,6 @@ def productos_editar(id):
     producto.price = float(request.form.get('precio', producto.price))
     producto.cost = float(request.form.get('costo', producto.cost))
     producto.tax = float(request.form.get('iva', producto.tax))
-    categoria_id = request.form.get('category_id')
-    producto.category_id = int(categoria_id) if categoria_id else None
 
     cantidad_raw = request.form.get('cantidad')
     imagen = request.files.get('imagen')
@@ -448,9 +444,6 @@ def reportes():
     return render_template('reportes.html', user=current_user)
 
 
-# ====================================================
-# 📄 GENERAR PDF DE FACTURA
-# ====================================================
 @app.route('/ventas/<int:id>/pdf')
 @login_required
 def generar_factura_pdf(id):
@@ -546,3 +539,4 @@ def generar_factura_pdf(id):
 # ====================================================
 if __name__ == '__main__':
     app.run(debug=True)
+

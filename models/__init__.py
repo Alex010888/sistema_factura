@@ -4,6 +4,24 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
+db.metadata.clear()  # Limpia duplicados si recargas modelos
+
+
+# ======================================================
+# 🏷️ Modelo de Categorías (NUEVO)
+# ======================================================
+class Category(db.Model):
+    __tablename__ = 'categories'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+
+    # Relación con productos
+    products = db.relationship('Product', backref='category', lazy=True)
+
+    def __repr__(self):
+        return f"<Category {self.name}>"
+
 
 # ======================================================
 # 🧍 Modelo de Usuarios
@@ -19,11 +37,9 @@ class User(db.Model, UserMixin):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relaciones
     sales = db.relationship('Sale', backref='user', lazy=True)
     invoices = db.relationship('Invoice', backref='user', lazy=True)
 
-    # Métodos de seguridad
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -48,13 +64,12 @@ class Customer(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relaciones
     sales = db.relationship('Sale', backref='customer', lazy=True)
     invoices = db.relationship('Invoice', backref='customer', lazy=True)
 
 
 # ======================================================
-# 📦 Modelo de Productos
+# 📦 Modelo de Productos (MODIFICADO)
 # ======================================================
 class Product(db.Model):
     __tablename__ = 'products'
@@ -67,14 +82,23 @@ class Product(db.Model):
     tax = db.Column(db.Float, nullable=False, default=13.0)
     image_path = db.Column(db.String(255))
 
-    # Relaciones
+    # ⭐ NUEVO: categoría del producto
+    category_id = db.Column(
+        db.Integer,
+        db.ForeignKey('categories.id'),
+        nullable=True
+    )
+
     stock_items = db.relationship('Stock', backref='product', cascade="all, delete-orphan", lazy=True)
     invoice_items = db.relationship('InvoiceItem', backref='product', cascade="all, delete-orphan", lazy=True)
     sale_items = db.relationship('SaleItem', backref='product', cascade="all, delete-orphan", lazy=True)
 
+    def __repr__(self):
+        return f"<Product {self.name} | Category: {self.category.name if self.category else 'Sin categoría'}>"
+
 
 # ======================================================
-# 🏬 Modelo de Inventario (Stock)
+# 🏬 Modelo de Inventario
 # ======================================================
 class Stock(db.Model):
     __tablename__ = 'stock'
@@ -87,7 +111,7 @@ class Stock(db.Model):
 
 
 # ======================================================
-# 🧾 Modelo de Ventas (Factura POS)
+# 🧾 Modelo de Ventas POS
 # ======================================================
 class Sale(db.Model):
     __tablename__ = 'sales'
@@ -101,12 +125,11 @@ class Sale(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relaciones
     items = db.relationship('SaleItem', backref='sale', cascade="all, delete-orphan", lazy=True)
 
 
 # ======================================================
-# 🧮 Modelo de Detalle de Ventas
+# 🧮 Detalle de Venta POS
 # ======================================================
 class SaleItem(db.Model):
     __tablename__ = 'sale_items'
@@ -121,7 +144,7 @@ class SaleItem(db.Model):
 
 
 # ======================================================
-# 🧾 Modelo de Factura Electrónica
+# 🧾 Modelo Factura Electrónica
 # ======================================================
 class Invoice(db.Model):
     __tablename__ = 'invoices'
@@ -135,21 +158,30 @@ class Invoice(db.Model):
     tax_total = db.Column(db.Float, nullable=False, default=0.0)
     total = db.Column(db.Float, nullable=False, default=0.0)
 
-    # ✅ Relación con los items (detalle)
-    items = db.relationship('InvoiceItem', backref='invoice', cascade="all, delete-orphan", lazy=True)
+    items = db.relationship(
+        'InvoiceItem',
+        backref='invoice',
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy=True
+    )
 
     def __repr__(self):
-        return f"<Factura {self.code} - Cliente {self.customer.name if self.customer else 'Sin cliente'}>"
+        return f"<Factura {self.code}>"
 
 
 # ======================================================
-# 🧾 Detalle de Factura Electrónica
+# 🧾 Detalle Factura Electrónica
 # ======================================================
 class InvoiceItem(db.Model):
     __tablename__ = 'invoice_items'
 
     id = db.Column(db.Integer, primary_key=True)
-    invoice_id = db.Column(db.Integer, db.ForeignKey('invoices.id'), nullable=False)
+    invoice_id = db.Column(
+        db.Integer,
+        db.ForeignKey('invoices.id', ondelete='CASCADE'),
+        nullable=False
+    )
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Float, nullable=False)
     price = db.Column(db.Float, nullable=False)
@@ -158,4 +190,4 @@ class InvoiceItem(db.Model):
     def __repr__(self):
         return f"<Item {self.product.name if self.product else 'Producto'} x {self.quantity}>"
 
-        return f"<Item {self.product.name} x {self.quantity}>"
+

@@ -1,0 +1,64 @@
+{% include 'header.html' %}
+
+<h1>Lista de productos 📋</h1>
+
+<table id="tablaVentas" class="display table table-striped table-bordered">
+    <thead class="table-primary text-center">
+        <tr>
+            <th>ID</th>
+            <th>Imagen</th>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>Precio</th>
+            <th>Costo</th>
+            <th>IVA %</th>
+            <th>Stock</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+
+    <tbody class="align-middle">
+        {% for p in productos %}
+        <tr>
+            <td>{{ p.id }}</td>
+
+            <td class="text-center">
+                {% if p.image_path %}
+                <img src="{{ url_for('static', filename='uploads/' ~ p.image_path) }}"
+                     alt="{{ p.name }}"
+                     width="60" height="60"
+                     class="rounded shadow-sm img-click"
+                     data-bs-toggle="modal"
+                     data-bs-target="#modalImagen"
+                     data-img="{{ url_for('static', filename='uploads/' ~ p.image_path) }}"
+                     data-nombre="{{ p.name }}">
+                {% else %}
+                <span class="text-muted">Sin imagen</span>
+                {% endif %}
+            </td>
+
+            <td>{{ p.code }}</td>
+            <td>{{ p.name }}</td>
+            <td>${{ "%.2f"|format(p.price) }}</td>
+            <td>${{ "%.2f"|format(p.cost) }}</td>
+            <td>{{ "%.2f"|format(p.tax) }}</td>
+
+            <td>
+                {% if p.stock_items %}
+                    {{ "%.3f"|format(p.stock_items[0].qty) }}
+                {% else %}
+                    0.000
+                {% endif %}
+            </td>
+
+            <td>
+                <!-- Aquí van botones de editar y borrar -->
+                <button class="btn btn-warning btn-sm"><i class="bi bi-pencil-square"></i></button>
+                <button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% include 'footer.html' %}

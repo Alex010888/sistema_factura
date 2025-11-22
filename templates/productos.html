@@ -1,9 +1,11 @@
 <!--
-  productos.html
-  ---------------------------------
-  Módulo de productos con imagen ampliable + control de stock.
-  Permite agregar, editar y eliminar productos.
-  Muestra inventario (stock actual) e imagen.
+  productos.html (MODIFICADO CON CATEGORÍAS)
+  ------------------------------------------
+  Se agrega:
+  ✔ Columna categoría
+  ✔ Select categoría en agregar
+  ✔ Select categoría en editar
+  ✔ Mostrar categoría en tabla
 -->
 
 <!DOCTYPE html>
@@ -59,6 +61,7 @@
       <tr>
         <th>ID</th>
         <th>Imagen</th>
+        <th>Categoría</th>   <!-- 🔥 NUEVO -->
         <th>Código</th>
         <th>Nombre</th>
         <th>Precio</th>
@@ -68,14 +71,16 @@
         <th>Acciones</th>
       </tr>
     </thead>
+
     <tbody class="align-middle">
       {% for p in productos %}
       <tr>
         <td>{{ p.id }}</td>
+
+        <!-- Imagen -->
         <td class="text-center">
           {% if p.image_path %}
             <img src="{{ url_for('static', filename='uploads/' ~ p.image_path) }}"
-                 alt="{{ p.name }}"
                  width="60" height="60"
                  class="rounded shadow-sm img-click"
                  data-bs-toggle="modal"
@@ -86,11 +91,22 @@
             <span class="text-muted">Sin imagen</span>
           {% endif %}
         </td>
+
+        <!-- 🔥 Categoría -->
+        <td>
+          {% if p.category %}
+            {{ p.category.name }}
+          {% else %}
+            <span class="text-muted">Sin categoría</span>
+          {% endif %}
+        </td>
+
         <td>{{ p.code }}</td>
         <td>{{ p.name }}</td>
         <td>${{ "%.2f"|format(p.price) }}</td>
         <td>${{ "%.2f"|format(p.cost) }}</td>
         <td>{{ "%.2f"|format(p.tax) }}</td>
+
         <td>
           {% if p.stock_items %}
             {{ "%.3f"|format(p.stock_items[0].qty) }}
@@ -98,9 +114,15 @@
             0.000
           {% endif %}
         </td>
+
         <td class="text-center">
-          <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalEditar{{ p.id }}">✏️</button>
-          <a href="{{ url_for('productos_eliminar', id=p.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar producto?')">🗑️</a>
+          <button class="btn btn-sm btn-warning"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalEditar{{ p.id }}">✏️</button>
+
+          <a href="{{ url_for('productos_eliminar', id=p.id) }}"
+             class="btn btn-sm btn-danger"
+             onclick="return confirm('¿Eliminar producto?')">🗑️</a>
         </td>
       </tr>
       {% endfor %}
@@ -108,7 +130,7 @@
   </table>
 </div>
 
-<!-- 🔹 Modales de edición -->
+<!-- 🔹 MODALES DE EDICIÓN -->
 {% for p in productos %}
 <div class="modal fade" id="modalEditar{{ p.id }}" tabindex="-1">
   <div class="modal-dialog">
@@ -117,52 +139,60 @@
         <h5 class="modal-title">Editar Producto</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
+
       <div class="modal-body">
+
+        <div class="mb-2"><label>Nombre</label>
+          <input name="nombre" class="form-control" value="{{ p.name }}" required>
+        </div>
+
+        <!-- 🔥 SELECT CATEGORÍA -->
         <div class="mb-2">
-          <label>Código (automático)</label>
-          <input name="codigo" class="form-control" value="{{ p.code }}" readonly>
+          <label>Categoría</label>
+          <select name="category_id" class="form-select">
+            <option value="">--Sin categoría--</option>
+            {% for c in categorias %}
+              <option value="{{ c.id }}" {% if p.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="mb-2"><label>Nombre</label><input name="nombre" class="form-control" value="{{ p.name }}" required></div>
-        <div class="mb-2"><label>Precio ($)</label><input name="precio" type="number" step="0.01" class="form-control" value="{{ p.price }}" required></div>
-        <div class="mb-2"><label>Costo ($)</label><input name="costo" type="number" step="0.01" class="form-control" value="{{ p.cost }}"></div>
-        <div class="mb-2"><label>IVA (%)</label><input name="iva" type="number" step="0.01" class="form-control" value="{{ p.tax }}"></div>
-        <div class="mb-2"><label>Cantidad en stock</label>
+
+        <div class="mb-2"><label>Precio</label>
+          <input name="precio" type="number" step="0.01" class="form-control" value="{{ p.price }}">
+        </div>
+
+        <div class="mb-2"><label>Costo</label>
+          <input name="costo" type="number" step="0.01" class="form-control" value="{{ p.cost }}">
+        </div>
+
+        <div class="mb-2"><label>IVA</label>
+          <input name="iva" type="number" step="0.01" class="form-control" value="{{ p.tax }}">
+        </div>
+
+        <div class="mb-2"><label>Stock</label>
           <input name="cantidad" type="number" step="0.001" class="form-control"
-            value="{% if p.stock_items %}{{ p.stock_items[0].qty }}{% else %}0{% endif %}">
+                 value="{% if p.stock_items %}{{ p.stock_items[0].qty }}{% else %}0{% endif %}">
         </div>
-        <div class="mb-2"><label>Imagen del producto</label>
+
+        <div class="mb-2"><label>Imagen</label>
           {% if p.image_path %}
-            <img src="{{ url_for('static', filename='uploads/' ~ p.image_path) }}" alt="preview" width="80" class="d-block mb-2 rounded shadow-sm">
+            <img src="{{ url_for('static', filename='uploads/' ~ p.image_path) }}" width="80" class="mb-2 rounded">
           {% endif %}
           <input type="file" name="imagen" class="form-control">
         </div>
+
       </div>
+
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn btn-warning" type="submit">Guardar Cambios</button>
+        <button class="btn btn-warning" type="submit">Guardar</button>
       </div>
     </form>
   </div>
 </div>
 {% endfor %}
 
-<!-- 🖼️ Modal para ampliar imagen -->
-<div class="modal fade" id="modalImagen" tabindex="-1" aria-labelledby="imagenLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0 shadow-lg">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="imagenLabel">Vista de imagen</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-      </div>
-      <div class="modal-body text-center">
-        <img id="imagenAmpliada" src="" alt="" class="img-fluid rounded shadow">
-        <p class="mt-2 text-secondary fw-semibold" id="nombreProducto"></p>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 🟢 Modal Agregar Producto -->
+<!-- 🔹 Modal Agregar Producto -->
 <div class="modal fade" id="modalAgregar" tabindex="-1">
   <div class="modal-dialog">
     <form method="POST" enctype="multipart/form-data" action="{{ url_for('productos_agregar') }}" class="modal-content">
@@ -170,15 +200,46 @@
         <h5 class="modal-title">Agregar Producto</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
+
       <div class="modal-body">
-        <!-- código eliminado: ahora es automático -->
-        <div class="mb-2"><label>Nombre</label><input name="nombre" class="form-control" required></div>
-        <div class="mb-2"><label>Precio ($)</label><input name="precio" type="number" step="0.01" class="form-control" required></div>
-        <div class="mb-2"><label>Costo ($)</label><input name="costo" type="number" step="0.01" class="form-control"></div>
-        <div class="mb-2"><label>IVA (%)</label><input name="iva" type="number" step="0.01" class="form-control" value="13.00"></div>
-        <div class="mb-2"><label>Cantidad inicial</label><input name="cantidad" type="number" step="0.001" class="form-control" value=""></div>
-        <div class="mb-2"><label>Imagen del producto</label><input type="file" name="imagen" class="form-control"></div>
+
+        <div class="mb-2"><label>Nombre</label>
+          <input name="nombre" class="form-control" required>
+        </div>
+
+        <!-- 🔥 SELECT CATEGORÍA -->
+        <div class="mb-2">
+          <label>Categoría</label>
+          <select name="category_id" class="form-select">
+            <option value="">-- Seleccionar --</option>
+            {% for c in categorias %}
+              <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-2"><label>Precio</label>
+          <input name="precio" type="number" step="0.01" class="form-control" required>
+        </div>
+
+        <div class="mb-2"><label>Costo</label>
+          <input name="costo" type="number" step="0.01" class="form-control">
+        </div>
+
+        <div class="mb-2"><label>IVA (%)</label>
+          <input name="iva" type="number" step="0.01" class="form-control" value="13.00">
+        </div>
+
+        <div class="mb-2"><label>Cantidad inicial</label>
+          <input name="cantidad" type="number" step="0.001" class="form-control">
+        </div>
+
+        <div class="mb-2"><label>Imagen del producto</label>
+          <input type="file" name="imagen" class="form-control">
+        </div>
+
       </div>
+
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         <button class="btn btn-success" type="submit">Guardar</button>
@@ -187,8 +248,8 @@
   </div>
 </div>
 
-<!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
 $(document).ready(function() {
   $('#tablaProductos').DataTable({
@@ -196,16 +257,6 @@ $(document).ready(function() {
     destroy: true,
     language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
   });
-});
-
-// 🖼️ Mostrar imagen ampliada
-const modalImagen = document.getElementById('modalImagen');
-modalImagen.addEventListener('show.bs.modal', event => {
-  const img = event.relatedTarget;
-  const imgSrc = img.getAttribute('data-img');
-  const nombre = img.getAttribute('data-nombre');
-  modalImagen.querySelector('#imagenAmpliada').src = imgSrc;
-  modalImagen.querySelector('#nombreProducto').textContent = nombre;
 });
 </script>
 

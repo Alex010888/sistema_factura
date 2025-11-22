@@ -1,0 +1,25 @@
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+$(document).ready(function() {
+  $('#tablaVentas').DataTable({
+    responsive: true,
+    destroy: true,
+    language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
+  });
+});
+
+// 🖼️ Mostrar imagen ampliada
+const modalImagen = document.getElementById('modalImagen');
+modalImagen.addEventListener('show.bs.modal', event => {
+  const img = event.relatedTarget;
+  const imgSrc = img.getAttribute('data-img');
+  const nombre = img.getAttribute('data-nombre');
+  modalImagen.querySelector('#imagenAmpliada').src = imgSrc;
+  modalImagen.querySelector('#nombreProducto').textContent = nombre;
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,29 @@
+# ====================================================
+# 🧾 Sistema de Facturación Electrónica - Requerimientos
+# ====================================================
+
+Flask==3.0.3
+Flask-Login==0.6.3
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.7
+
+# 🧩 Conector de Base de Datos
+mysql-connector-python==9.0.0
+
+# 🧾 Generación de PDFs
+reportlab==4.2.2
+
+# 🧰 Utilidades internas de Flask
+Werkzeug==3.0.3
+itsdangerous==2.2.0
+click==8.1.7
+
+# 🧠 Configuración y validaciones
+python-dotenv==1.0.1
+email-validator==2.2.0
+
+# 🖼️ Manejo de imágenes
+Pillow==11.0.0
+
+# 🔧 Opcional: Depuración y entorno de desarrollo
+Flask-DebugToolbar==0.15.1
