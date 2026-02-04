@@ -128,3 +128,101 @@ h4, h5 {
 ::-webkit-scrollbar-thumb:hover {
   background: #0b5ed7;
 }
+
+/* ==========================================================
+   Tema panadería (refactor visual)
+   ========================================================== */
+
+:root {
+  --bakery-ink: #23160f;
+  --bakery-cream: #fff7ec;
+  --bakery-wheat: #f2c48a;
+  --bakery-copper: #c7773b;
+  --bakery-cocoa: #4b2a1b;
+}
+
+.app-body {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(242, 196, 138, 0.35), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(199, 119, 59, 0.18), transparent 48%),
+    var(--bakery-cream);
+  color: var(--bakery-ink);
+}
+
+.app-navbar {
+  background: linear-gradient(120deg, #1e2a47, #15325b);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+}
+
+.app-navbar .brand-name {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.app-navbar .nav-link {
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  margin-right: 0.25rem;
+}
+
+.app-navbar .nav-link.active,
+.app-navbar .nav-link:hover {
+  background: rgba(242, 196, 138, 0.22);
+}
+
+.app-user {
+  opacity: 0.9;
+}
+
+.app-hero {
+  border-radius: 18px;
+  background: linear-gradient(130deg, rgba(35, 22, 15, 0.04), rgba(35, 22, 15, 0.0));
+  border: 1px solid rgba(35, 22, 15, 0.08);
+  overflow: hidden;
+}
+
+.app-hero-inner {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1.4rem 1.4rem 0.9rem 1.4rem;
+}
+
+.app-hero-title {
+  font-weight: 800;
+  color: var(--bakery-cocoa);
+}
+
+.app-hero-subtitle {
+  color: rgba(35, 22, 15, 0.7);
+}
+
+.app-hero-art img {
+  width: 100%;
+  height: auto;
+  display: block;
+  transform: translateY(6px);
+}
+
+.app-card {
+  border-radius: 14px;
+  border: 1px solid rgba(35, 22, 15, 0.1);
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(35, 22, 15, 0.08);
+}
+
+.app-footer {
+  border-top: 1px solid rgba(35, 22, 15, 0.1);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(6px);
+}
+
+@media (max-width: 992px) {
+  .app-hero-inner {
+    grid-template-columns: 1fr;
+  }
+  .app-hero-art {
+    order: -1;
+  }
+}

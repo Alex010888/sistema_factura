@@ -1,64 +1,165 @@
-{% include 'header.html' %}
+{% extends 'base.html' %}
+{% set page_title = 'Venta rápida' %}
+{% set hero_title = 'Venta rápida' %}
+{% set hero_subtitle = 'Consumidor final: búsqueda, cantidades y cobro.' %}
 
-<h1>Lista de productos 📋</h1>
+{% block head_extra %}
+  <style>
+    .pos-table td, .pos-table th { vertical-align: middle; }
+    .pos-qty { max-width: 110px; }
+    .pos-sticky { position: sticky; top: 86px; }
+  </style>
+{% endblock %}
 
-<table id="tablaVentas" class="display table table-striped table-bordered">
-    <thead class="table-primary text-center">
-        <tr>
-            <th>ID</th>
-            <th>Imagen</th>
-            <th>Código</th>
-            <th>Nombre</th>
-            <th>Precio</th>
-            <th>Costo</th>
-            <th>IVA %</th>
-            <th>Stock</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
+{% block content %}
+{% if venta_creada %}
+  <div class="alert alert-success d-flex justify-content-between align-items-center">
+    <div>
+      Venta registrada: <strong>{{ venta_creada.sale_number }}</strong>
+      <span class="ms-2">Total: ${{ "%.2f"|format(venta_creada.total or 0) }}</span>
+    </div>
+    <a class="btn btn-outline-success btn-sm" target="_blank" href="{{ url_for('venta_rapida_pdf', id=venta_creada.id) }}">
+      Imprimir PDF
+    </a>
+  </div>
+{% endif %}
 
-    <tbody class="align-middle">
-        {% for p in productos %}
-        <tr>
-            <td>{{ p.id }}</td>
+<form method="post" class="row g-4">
+  <div class="col-lg-8">
+    <div class="app-card p-3">
+      <div class="mb-3">
+        <label class="form-label">Buscar producto</label>
+        <input type="text" id="buscarProducto" class="form-control" placeholder="Nombre o código">
+      </div>
 
-            <td class="text-center">
-                {% if p.image_path %}
-                <img src="{{ url_for('static', filename='uploads/' ~ p.image_path) }}"
-                     alt="{{ p.name }}"
-                     width="60" height="60"
-                     class="rounded shadow-sm img-click"
-                     data-bs-toggle="modal"
-                     data-bs-target="#modalImagen"
-                     data-img="{{ url_for('static', filename='uploads/' ~ p.image_path) }}"
-                     data-nombre="{{ p.name }}">
-                {% else %}
-                <span class="text-muted">Sin imagen</span>
-                {% endif %}
-            </td>
-
-            <td>{{ p.code }}</td>
-            <td>{{ p.name }}</td>
-            <td>${{ "%.2f"|format(p.price) }}</td>
-            <td>${{ "%.2f"|format(p.cost) }}</td>
-            <td>{{ "%.2f"|format(p.tax) }}</td>
-
-            <td>
+      <div class="table-responsive">
+        <table class="table table-striped table-bordered pos-table" id="tablaPos">
+          <thead class="text-center">
+            <tr>
+              <th>Producto</th>
+              <th>Código</th>
+              <th>Precio (IVA incluido)</th>
+              <th>Stock</th>
+              <th>Cantidad</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in productos %}
+            <tr data-name="{{ p.name|lower }}" data-code="{{ p.code|default('', true)|lower }}">
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  {% if p.image_path %}
+                    <img src="{{ url_for('static', filename='uploads/' ~ p.image_path) }}" alt="{{ p.name }}" width="42" height="42" class="rounded shadow-sm">
+                  {% else %}
+                    <img src="{{ url_for('static', filename='img/bakery-logo.svg') }}" alt="Producto" width="34" height="34">
+                  {% endif %}
+                  <div>
+                    <div class="fw-semibold">{{ p.name }}</div>
+                    <div class="text-muted small">{{ p.category.name if p.category else 'Sin categoría' }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-center">{{ p.code }}</td>
+              <td class="text-end">${{ "%.2f"|format(p.price) }}</td>
+              <td class="text-center">
                 {% if p.stock_items %}
-                    {{ "%.3f"|format(p.stock_items[0].qty) }}
+                  {{ "%.3f"|format(p.stock_items[0].qty) }}
                 {% else %}
-                    0.000
+                  0.000
                 {% endif %}
-            </td>
+              </td>
+              <td class="text-center">
+                <input class="form-control form-control-sm pos-qty qty-input"
+                       type="number" min="0" step="0.001"
+                       name="cantidad_{{ p.id }}"
+                       value="0"
+                       data-precio="{{ "%.2f"|format(p.price) }}">
+              </td>
+              <td class="text-end subtotal-item">$0.00</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-            <td>
-                <!-- Aquí van botones de editar y borrar -->
-                <button class="btn btn-warning btn-sm"><i class="bi bi-pencil-square"></i></button>
-                <button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+  <div class="col-lg-4">
+    <div class="app-card p-4 pos-sticky">
+      <h5 class="mb-3">Resumen</h5>
+      <div class="d-flex justify-content-between mb-2">
+        <span>Subtotal</span>
+        <strong id="subtotalGeneral">$0.00</strong>
+      </div>
+      <div class="d-flex justify-content-between mb-2">
+        <span>Total</span>
+        <strong id="totalGeneral">$0.00</strong>
+      </div>
 
-{% include 'footer.html' %}
+      <div class="mb-3">
+        <label class="form-label">Método de pago</label>
+        <select name="paid_with" class="form-select">
+          <option value="EFECTIVO">Efectivo</option>
+          <option value="TARJETA">Tarjeta</option>
+          <option value="TRANSFERENCIA">Transferencia</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-success w-100">Registrar venta rápida</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const buscarInput = document.getElementById('buscarProducto');
+    const tabla = document.getElementById('tablaPos');
+    const filas = Array.from(tabla.querySelectorAll('tbody tr'));
+    const subtotalGeneral = document.getElementById('subtotalGeneral');
+    const totalGeneral = document.getElementById('totalGeneral');
+
+    function toNumber(value) {
+      const parsed = parseFloat(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+
+    function formatMoney(value) {
+      return `$${value.toFixed(2)}`;
+    }
+
+    function actualizarTotales() {
+      let subtotal = 0;
+
+      filas.forEach((fila) => {
+        const qty = fila.querySelector('.qty-input');
+        const cantidad = toNumber(qty.value);
+        const precio = toNumber(qty.dataset.precio);
+        const sub = precio * cantidad;
+
+        fila.querySelector('.subtotal-item').textContent = formatMoney(sub);
+        subtotal += sub;
+      });
+
+      subtotalGeneral.textContent = formatMoney(subtotal);
+      totalGeneral.textContent = formatMoney(subtotal);
+    }
+
+    buscarInput.addEventListener('input', (event) => {
+      const term = event.target.value.toLowerCase().trim();
+      filas.forEach((fila) => {
+        const nombre = fila.dataset.name || '';
+        const codigo = fila.dataset.code || '';
+        const visible = nombre.includes(term) || codigo.includes(term);
+        fila.style.display = visible ? '' : 'none';
+      });
+    });
+
+    filas.forEach((fila) => {
+      fila.querySelector('.qty-input').addEventListener('input', actualizarTotales);
+    });
+
+    actualizarTotales();
+  </script>
+{% endblock %}

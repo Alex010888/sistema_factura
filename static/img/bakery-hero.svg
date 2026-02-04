@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE9C9"/>
+      <stop offset="0.5" stop-color="#F7D8A4"/>
+      <stop offset="1" stop-color="#EAB57A"/>
+    </linearGradient>
+    <linearGradient id="ink" x1="0" y1="0" x2="0" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2B1B13" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#2B1B13" stop-opacity="0.04"/>
+    </linearGradient>
+    <filter id="soft" x="-20" y="-20" width="1240" height="400" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="360" rx="28" fill="url(#bg)"/>
+  <rect width="1200" height="360" rx="28" fill="url(#ink)"/>
+
+  <!-- Decorative wheat -->
+  <g opacity="0.38">
+    <path d="M132 274C110 248 110 214 132 188C154 214 154 248 132 274Z" fill="#B86E3A"/>
+    <path d="M132 274V314" stroke="#B86E3A" stroke-width="6" stroke-linecap="round"/>
+    <path d="M92 252C72 228 72 200 92 176C112 200 112 228 92 252Z" fill="#C7773B"/>
+    <path d="M92 252V314" stroke="#C7773B" stroke-width="6" stroke-linecap="round"/>
+    <path d="M172 252C152 228 152 200 172 176C192 200 192 228 172 252Z" fill="#C7773B"/>
+    <path d="M172 252V314" stroke="#C7773B" stroke-width="6" stroke-linecap="round"/>
+  </g>
+
+  <!-- Bread silhouettes -->
+  <g filter="url(#soft)" opacity="0.35">
+    <path d="M840 260C840 204 885 160 940 160C995 160 1040 204 1040 260C1040 305 1004 332 940 332C876 332 840 305 840 260Z" fill="#2B1B13"/>
+    <path d="M735 275C735 232 770 198 812 198C854 198 889 232 889 275C889 309 861 330 812 330C763 330 735 309 735 275Z" fill="#2B1B13"/>
+  </g>
+
+  <!-- Front bread (crust) -->
+  <g>
+    <path d="M854 248C854 194 897 152 950 152C1003 152 1046 194 1046 248C1046 292 1012 320 950 320C888 320 854 292 854 248Z" fill="#C7773B"/>
+    <path d="M874 236C874 195 907 162 948 162C989 162 1022 195 1022 236C1022 269 996 290 948 290C900 290 874 269 874 236Z" fill="#F3C07B" opacity="0.55"/>
+    <path d="M900 210C900 199 912 188 928 184" stroke="#FFF" stroke-opacity="0.85" stroke-width="8" stroke-linecap="round"/>
+    <path d="M930 206C930 196 942 186 958 182" stroke="#FFF" stroke-opacity="0.8" stroke-width="8" stroke-linecap="round"/>
+    <path d="M962 210C962 200 974 190 990 186" stroke="#FFF" stroke-opacity="0.75" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <!-- Subtle dots -->
+  <g opacity="0.22">
+    <circle cx="468" cy="88" r="4" fill="#2B1B13"/>
+    <circle cx="512" cy="118" r="3" fill="#2B1B13"/>
+    <circle cx="550" cy="78" r="3" fill="#2B1B13"/>
+    <circle cx="590" cy="110" r="4" fill="#2B1B13"/>
+    <circle cx="628" cy="84" r="3" fill="#2B1B13"/>
+  </g>
+</svg>
