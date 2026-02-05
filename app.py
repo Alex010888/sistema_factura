@@ -19,7 +19,7 @@ from models import (
     SaleItem
 )
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func
+from sqlalchemy import func, text
 from datetime import date, datetime, timedelta  # para fecha en ventas_nueva
 from decimal import Decimal  # para manejar cantidades en inventario
 import os
@@ -67,10 +67,35 @@ def _auto_create_db_if_enabled():
     activar la creación automática de tablas con:
       AUTO_CREATE_DB=1
     """
-    flag = (os.getenv('AUTO_CREATE_DB', '') or '').strip().lower()
+    flag_raw = (os.getenv('AUTO_CREATE_DB', '') or '').strip()
+    # Si estamos en Render y no se definió el flag, lo activamos por defecto
+    # para evitar 500 por "tabla no existe" en el primer despliegue.
+    if not flag_raw and (os.getenv('RENDER') or os.getenv('RENDER_SERVICE_ID') or os.getenv('RENDER_SERVICE_NAME')):
+        flag_raw = '1'
+
+    flag = flag_raw.lower()
     if flag in ('1', 'true', 'yes', 'y', 'on'):
         with app.app_context():
-            db.create_all()
+            try:
+                # Evitar carreras si Gunicorn levanta múltiples workers.
+                # En Postgres usamos advisory lock; en otros motores, create_all directo.
+                if db.engine.dialect.name == 'postgresql':
+                    lock_key = 923_481_227  # constante cualquiera
+                    got_lock = db.session.execute(
+                        text("SELECT pg_try_advisory_lock(:k)"),
+                        {"k": lock_key}
+                    ).scalar()
+                    if got_lock:
+                        db.create_all()
+                        db.session.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": lock_key})
+                    else:
+                        # Otro worker ya está inicializando
+                        pass
+                else:
+                    db.create_all()
+            except Exception:
+                # Dejar evidencia en logs de Render
+                app.logger.exception("Error inicializando tablas (AUTO_CREATE_DB).")
 
 
 _auto_create_db_if_enabled()
