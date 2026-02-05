@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: sistema-factura
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sistema-factura-db
+          property: connectionString
+      # Si creas una base Postgres administrada en Render, vincula DATABASE_URL al servicio web
+      # desde el panel (o agregándola como env var conectada).
+
+databases:
+  - name: sistema-factura-db
+    plan: free

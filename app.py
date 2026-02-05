@@ -60,6 +60,21 @@ db.init_app(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+def _auto_create_db_if_enabled():
+    """
+    En hosting (Render) normalmente se usan migraciones, pero este proyecto no
+    incluye carpeta `migrations/`. Para facilitar el primer despliegue puedes
+    activar la creación automática de tablas con:
+      AUTO_CREATE_DB=1
+    """
+    flag = (os.getenv('AUTO_CREATE_DB', '') or '').strip().lower()
+    if flag in ('1', 'true', 'yes', 'y', 'on'):
+        with app.app_context():
+            db.create_all()
+
+
+_auto_create_db_if_enabled()
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -129,8 +144,11 @@ def ventas_listar():
 
     if request.method == 'POST':
         items = []
-        subtotal = Decimal('0.00')
-        # Nota: en venta rápida el precio YA incluye IVA (no se suma aparte)
+        # Nota: en venta rápida el precio YA incluye IVA (no se suma aparte).
+        # Guardamos:
+        # - subtotal_gross: total cobrado (IVA incluido)
+        # - iva_total: porción de IVA incluida en el total (solo referencia/reporte/PDF)
+        subtotal_gross = Decimal('0.00')
         iva_total = Decimal('0.00')
 
         for key in request.form:
@@ -155,10 +173,21 @@ def ventas_listar():
                 continue
 
             precio_unitario = Decimal(str(producto.price))
-            subtotal_item = precio_unitario * cantidad
-            iva_item = Decimal('0.00')
+            subtotal_item = precio_unitario * cantidad  # IVA incluido
 
-            subtotal += subtotal_item
+            # IVA incluido: extraer porción según %IVA del producto
+            try:
+                tax_rate = Decimal(str(producto.tax or 0)) / Decimal('100')
+            except Exception:
+                tax_rate = Decimal('0')
+
+            if tax_rate > 0:
+                net_item = subtotal_item / (Decimal('1.00') + tax_rate)
+                iva_item = subtotal_item - net_item
+            else:
+                iva_item = Decimal('0.00')
+
+            subtotal_gross += subtotal_item
             iva_total += iva_item
 
             items.append({
@@ -173,7 +202,7 @@ def ventas_listar():
             flash('Debes ingresar al menos una cantidad mayor a 0 📦', 'warning')
             return redirect(url_for('ventas_listar'))
 
-        total = subtotal
+        total = subtotal_gross
         metodo_pago = request.form.get('paid_with', 'EFECTIVO').strip() or 'EFECTIVO'
 
         try:
@@ -795,11 +824,11 @@ def venta_rapida_pdf(id):
     elements += [empresa, Spacer(1, 8), titulo, Spacer(1, 12), venta_info, Spacer(1, 12)]
 
     data = [["Producto", "Cantidad", "Precio Unitario ($)", "Subtotal ($)"]]
-    subtotal = Decimal('0.00')
+    gross_total = Decimal('0.00')  # IVA incluido
     iva_total = Decimal('0.00')
 
     for item in venta.items:
-        subtotal += Decimal(str(item.subtotal or 0))
+        gross_total += Decimal(str(item.subtotal or 0))
         iva_total += Decimal(str(item.tax or 0))
         data.append([
             item.product.name if item.product else 'Producto',
@@ -808,10 +837,11 @@ def venta_rapida_pdf(id):
             f"{float(item.subtotal):.2f}"
         ])
 
-    total = subtotal + iva_total
+    net_subtotal = gross_total - iva_total
+    total = gross_total
 
-    data.append(["", "", "Subtotal:", f"{subtotal:.2f}"])
-    data.append(["", "", "IVA:", f"{iva_total:.2f}"])
+    data.append(["", "", "Subtotal (sin IVA):", f"{net_subtotal:.2f}"])
+    data.append(["", "", "IVA incluido:", f"{iva_total:.2f}"])
     data.append(["", "", "Total a Pagar:", f"{total:.2f}"])
 
     table = Table(data, colWidths=[2.5*inch, 1*inch, 1.5*inch, 1.5*inch])

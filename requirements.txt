@@ -1,0 +1,33 @@
+# Nota: este archivo es el que Render detecta por defecto.
+# Mantengo tus versiones del archivo "requerimiento.txt" y agrego Gunicorn + Postgres driver.
+
+Flask==3.0.3
+Flask-Login==0.6.3
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.7
+
+# Servidor WSGI para producción (Render)
+gunicorn
+
+# Drivers de base de datos (elige según tu DATABASE_URL)
+mysql-connector-python==9.0.0
+psycopg2-binary
+
+# PDFs
+reportlab==4.2.2
+
+# Utilidades Flask
+Werkzeug==3.0.3
+itsdangerous==2.2.0
+click==8.1.7
+
+# Configuración
+python-dotenv==1.0.1
+email-validator==2.2.0
+
+# Imágenes
+Pillow==11.0.0
+
+# Opcional (dev)
+Flask-DebugToolbar==0.15.1
+

@@ -74,7 +74,8 @@
                        type="number" min="0" step="0.001"
                        name="cantidad_{{ p.id }}"
                        value="0"
-                       data-precio="{{ "%.2f"|format(p.price) }}">
+                       data-precio="{{ "%.2f"|format(p.price) }}"
+                       data-iva="{{ "%.2f"|format(p.tax or 0) }}">
               </td>
               <td class="text-end subtotal-item">$0.00</td>
             </tr>
@@ -89,12 +90,25 @@
     <div class="app-card p-4 pos-sticky">
       <h5 class="mb-3">Resumen</h5>
       <div class="d-flex justify-content-between mb-2">
-        <span>Subtotal</span>
+        <span>Subtotal (sin IVA)</span>
         <strong id="subtotalGeneral">$0.00</strong>
+      </div>
+      <div class="d-flex justify-content-between mb-2">
+        <span>IVA incluido</span>
+        <strong id="ivaGeneral">$0.00</strong>
       </div>
       <div class="d-flex justify-content-between mb-2">
         <span>Total</span>
         <strong id="totalGeneral">$0.00</strong>
+      </div>
+
+      <hr class="my-3">
+      <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-semibold">Carrito</div>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLimpiar">Limpiar</button>
+        </div>
+        <div id="carritoLista" class="small text-muted">Sin productos seleccionados</div>
       </div>
 
       <div class="mb-3">
@@ -118,7 +132,10 @@
     const tabla = document.getElementById('tablaPos');
     const filas = Array.from(tabla.querySelectorAll('tbody tr'));
     const subtotalGeneral = document.getElementById('subtotalGeneral');
+    const ivaGeneral = document.getElementById('ivaGeneral');
     const totalGeneral = document.getElementById('totalGeneral');
+    const carritoLista = document.getElementById('carritoLista');
+    const btnLimpiar = document.getElementById('btnLimpiar');
 
     function toNumber(value) {
       const parsed = parseFloat(value);
@@ -130,20 +147,67 @@
     }
 
     function actualizarTotales() {
-      let subtotal = 0;
+      let subtotalNet = 0;
+      let ivaIncluido = 0;
+      let total = 0;
+      const carrito = [];
 
       filas.forEach((fila) => {
         const qty = fila.querySelector('.qty-input');
         const cantidad = toNumber(qty.value);
         const precio = toNumber(qty.dataset.precio);
-        const sub = precio * cantidad;
+        const ivaPct = toNumber(qty.dataset.iva);
+        const ivaRate = ivaPct > 0 ? (ivaPct / 100) : 0;
 
-        fila.querySelector('.subtotal-item').textContent = formatMoney(sub);
-        subtotal += sub;
+        const gross = precio * cantidad;
+        const net = ivaRate > 0 ? (gross / (1 + ivaRate)) : gross;
+        const iva = gross - net;
+
+        fila.querySelector('.subtotal-item').textContent = formatMoney(gross);
+        subtotalNet += net;
+        ivaIncluido += iva;
+        total += gross;
+
+        if (cantidad > 0) {
+          const nombre = (fila.querySelector('.fw-semibold')?.textContent || 'Producto').trim();
+          carrito.push({ fila, nombre, cantidad, gross });
+        }
       });
 
-      subtotalGeneral.textContent = formatMoney(subtotal);
-      totalGeneral.textContent = formatMoney(subtotal);
+      subtotalGeneral.textContent = formatMoney(subtotalNet);
+      ivaGeneral.textContent = formatMoney(ivaIncluido);
+      totalGeneral.textContent = formatMoney(total);
+
+      if (!carrito.length) {
+        carritoLista.innerHTML = 'Sin productos seleccionados';
+        return;
+      }
+
+      carritoLista.innerHTML = carrito.map((c, idx) => {
+        return `
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <div class="me-2">
+              <div class="text-dark">${c.nombre}</div>
+              <div class="text-muted">Cant: ${c.cantidad.toFixed(3)}</div>
+            </div>
+            <div class="text-end">
+              <div class="text-dark">${formatMoney(c.gross)}</div>
+              <button type="button" class="btn btn-link p-0 small text-danger" data-remove-idx="${idx}">Quitar</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      carritoLista.querySelectorAll('[data-remove-idx]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          const i = parseInt(e.currentTarget.dataset.removeIdx, 10);
+          const item = carrito[i];
+          if (!item) return;
+          const input = item.fila.querySelector('.qty-input');
+          if (input) input.value = '0';
+          actualizarTotales();
+        });
+      });
     }
 
     buscarInput.addEventListener('input', (event) => {
@@ -159,6 +223,16 @@
     filas.forEach((fila) => {
       fila.querySelector('.qty-input').addEventListener('input', actualizarTotales);
     });
+
+    if (btnLimpiar) {
+      btnLimpiar.addEventListener('click', () => {
+        filas.forEach((fila) => {
+          const input = fila.querySelector('.qty-input');
+          if (input) input.value = '0';
+        });
+        actualizarTotales();
+      });
+    }
 
     actualizarTotales();
   </script>
