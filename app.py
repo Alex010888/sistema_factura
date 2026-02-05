@@ -3,7 +3,7 @@
 # ====================================================
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from config import Config
 from models import (
@@ -22,6 +22,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, text
 from datetime import date, datetime, timedelta  # para fecha en ventas_nueva
 from decimal import Decimal  # para manejar cantidades en inventario
+from types import SimpleNamespace
 import os
 
 # ====================================================
@@ -60,6 +61,39 @@ db.init_app(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+SYSTEM_USERNAME = os.getenv('SYSTEM_USERNAME', 'sistema').strip() or 'sistema'
+
+
+def _get_system_user():
+    return User.query.filter_by(username=SYSTEM_USERNAME).first()
+
+
+def _effective_user():
+    if getattr(current_user, 'is_authenticated', False):
+        return current_user
+    # Modo sin login: usar usuario del sistema si existe
+    try:
+        u = _get_system_user()
+        if u:
+            return u
+    except Exception:
+        pass
+    return SimpleNamespace(id=None, username='Invitado', role='guest', status=1)
+
+
+def _effective_user_id():
+    u = _effective_user()
+    return getattr(u, 'id', None)
+
+
+@app.context_processor
+def _inject_user_context():
+    return {
+        'user': _effective_user(),
+        'login_disabled': bool(app.config.get('LOGIN_DISABLED', False))
+    }
+
+
 def _auto_create_db_if_enabled():
     """
     En hosting (Render) normalmente se usan migraciones, pero este proyecto no
@@ -70,7 +104,10 @@ def _auto_create_db_if_enabled():
     flag_raw = (os.getenv('AUTO_CREATE_DB', '') or '').strip()
     # Si estamos en Render y no se definió el flag, lo activamos por defecto
     # para evitar 500 por "tabla no existe" en el primer despliegue.
-    if not flag_raw and (os.getenv('RENDER') or os.getenv('RENDER_SERVICE_ID') or os.getenv('RENDER_SERVICE_NAME')):
+    if not flag_raw and (
+        os.getenv('RENDER') or os.getenv('RENDER_SERVICE_ID') or os.getenv('RENDER_SERVICE_NAME')
+        or app.config.get('LOGIN_DISABLED', False)
+    ):
         flag_raw = '1'
 
     flag = flag_raw.lower()
@@ -100,6 +137,80 @@ def _auto_create_db_if_enabled():
 
 _auto_create_db_if_enabled()
 
+def _bootstrap_admin_if_configured():
+    """
+    Bootstrap seguro del admin (útil en Render).
+
+    Si defines estas variables de entorno en Render:
+      - ADMIN_USERNAME
+      - ADMIN_PASSWORD
+    entonces al arrancar se crea/actualiza el usuario con rol 'admin'.
+
+    Esto evita quedar bloqueado sin credenciales cuando la BD está vacía o se recrea.
+    """
+    username = (os.getenv('ADMIN_USERNAME', '') or '').strip()
+    password = (os.getenv('ADMIN_PASSWORD', '') or '').strip()
+    if not username or not password:
+        return
+
+    # Solo bootstrapea automáticamente en Render, a menos que lo fuerces explícitamente.
+    force = (os.getenv('BOOTSTRAP_ADMIN', '') or '').strip().lower() in ('1', 'true', 'yes', 'y', 'on')
+    on_render = bool(os.getenv('RENDER') or os.getenv('RENDER_SERVICE_ID') or os.getenv('RENDER_SERVICE_NAME'))
+    if not (force or on_render):
+        return
+
+    with app.app_context():
+        try:
+            user = User.query.filter_by(username=username).first()
+            if user:
+                user.password_hash = generate_password_hash(password)
+                user.role = user.role or 'admin'
+                user.status = 1
+            else:
+                user = User(
+                    username=username,
+                    password_hash=generate_password_hash(password),
+                    role='admin',
+                    status=1
+                )
+                db.session.add(user)
+            db.session.commit()
+            app.logger.info("Admin bootstrap OK para usuario '%s'.", username)
+        except Exception:
+            db.session.rollback()
+            app.logger.exception("Fallo bootstrapping del admin.")
+
+
+_bootstrap_admin_if_configured()
+
+def _ensure_system_user_if_login_disabled():
+    """
+    Si el login está deshabilitado, aseguramos un usuario interno para poder
+    guardar `user_id` en ventas/facturas (campos NOT NULL).
+    """
+    if not app.config.get('LOGIN_DISABLED', False):
+        return
+    with app.app_context():
+        try:
+            user = _get_system_user()
+            if user:
+                return
+            user = User(
+                username=SYSTEM_USERNAME,
+                password_hash=generate_password_hash(os.urandom(16).hex()),
+                role='admin',
+                status=1
+            )
+            db.session.add(user)
+            db.session.commit()
+            app.logger.info("Usuario de sistema creado: '%s'.", SYSTEM_USERNAME)
+        except Exception:
+            db.session.rollback()
+            app.logger.exception("No se pudo crear el usuario de sistema.")
+
+
+_ensure_system_user_if_login_disabled()
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -111,12 +222,16 @@ def load_user(user_id):
 # ====================================================
 @app.route('/')
 def index():
+    if app.config.get('LOGIN_DISABLED', False):
+        return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Inicio de sesión"""
+    if app.config.get('LOGIN_DISABLED', False):
+        return redirect(url_for('dashboard'))
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
@@ -135,12 +250,14 @@ def login():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html', user=current_user)
+    return render_template('dashboard.html', user=_effective_user())
 
 
 @app.route('/logout')
 @login_required
 def logout():
+    if app.config.get('LOGIN_DISABLED', False):
+        return redirect(url_for('dashboard'))
     logout_user()
     flash('Has cerrado sesión correctamente 👋', 'info')
     return redirect(url_for('login'))
@@ -232,7 +349,7 @@ def ventas_listar():
 
         try:
             nueva_venta = Sale(
-                user_id=current_user.id,
+                user_id=_effective_user_id(),
                 customer_id=None,
                 total=float(total),
                 paid_with=metodo_pago
@@ -284,7 +401,7 @@ def ventas_listar():
     return render_template(
         'venta_final.html',
         productos=productos,
-        user=current_user,
+        user=_effective_user(),
         venta_creada=venta_creada
     )
 
@@ -297,7 +414,7 @@ def ventas_listar():
 def ventas():
     """Listado de facturas"""
     facturas = Invoice.query.options(joinedload(Invoice.customer)).all()
-    return render_template('ventas.html', facturas=facturas, user=current_user)
+    return render_template('ventas.html', facturas=facturas, user=_effective_user())
 
 
 @app.route('/ventas/nueva', methods=['GET', 'POST'])
@@ -362,7 +479,7 @@ def ventas_nueva():
         nueva_factura = Invoice(
             code="TEMP",
             customer_id=cliente_id,
-            user_id=current_user.id,
+            user_id=_effective_user_id(),
             subtotal=float(subtotal),      # guardamos como float en BD
             tax_total=float(iva_total),
             total=float(total)
@@ -404,7 +521,7 @@ def ventas_nueva():
         'ventas_nueva.html',
         clientes=clientes,
         productos=productos,
-        user=current_user,
+        user=_effective_user(),
         date=date  # variable para {{ date.today() }} en la vista
     )
 
@@ -426,7 +543,7 @@ def ventas_detalle(id):
     return render_template(
         'ventas_detalle.html',
         factura=factura,
-        user=current_user
+        user=_effective_user()
     )
 
 
@@ -455,7 +572,7 @@ def ventas_eliminar(id):
 @login_required
 def clientes_listar():
     clientes = Customer.query.all()
-    return render_template('clientes.html', clientes=clientes, user=current_user)
+    return render_template('clientes.html', clientes=clientes, user=_effective_user())
 
 
 @app.route('/clientes/agregar', methods=['POST'])
@@ -522,7 +639,7 @@ def productos_listar():
         'productos.html',
         productos=productos,
         categorias=categorias,
-        user=current_user
+        user=_effective_user()
     )
 
 
@@ -785,7 +902,7 @@ def reportes():
 
     return render_template(
         'reportes.html',
-        user=current_user,
+        user=_effective_user(),
         start_date=start_str,
         end_date=end_str,
         low_stock_threshold=str(low_stock_threshold_val),

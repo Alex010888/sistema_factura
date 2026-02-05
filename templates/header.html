@@ -28,7 +28,11 @@
       </ul>
       <div class="d-flex align-items-center gap-3">
         <span class="navbar-text app-user">Hola, {{ user.username }}</span>
-        <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Salir</a>
+        {% if not login_disabled %}
+          <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Salir</a>
+        {% else %}
+          <span class="badge text-bg-warning">Login desactivado</span>
+        {% endif %}
       </div>
     </div>
   </div>

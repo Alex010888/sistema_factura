@@ -13,6 +13,13 @@ class Config:
     # Seguridad
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 
+    # Desactivar login temporalmente (Flask-Login lo soporta).
+    # Por defecto queda DESACTIVADO; para reactivarlo usa:
+    #   LOGIN_DISABLED=0
+    LOGIN_DISABLED = (os.getenv('LOGIN_DISABLED', '1') or '1').strip().lower() in (
+        '1', 'true', 'yes', 'y', 'on'
+    )
+
     # Base de datos (preferencia: DATABASE_URL)
     _db_url = os.getenv('DATABASE_URL', '').strip()
     if _db_url.startswith('postgres://'):
